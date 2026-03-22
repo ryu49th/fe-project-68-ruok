@@ -12,17 +12,17 @@ export const authOptions: AuthOptions = {
             // e.g. domain, username, password, 2FA token, etc.
             // You can pass any HTML attribute to the <input> tag through the object.
             credentials: {
-                emails: { label: "Email", type: "email", placeholder: "email" },
+                email: { label: "Email", type: "email", placeholder: "email" },
                 password: { label: "Password", type: "password" }
             },
             async authorize(credentials, req) {
 
                 if (!credentials) return null
-                const user = await userLogIn(credentials.emails, credentials.password)
+                const user = await userLogIn(credentials.email, credentials.password)
 
                 if (user) {
                     // Any object returned will be saved in `user` property of the JWT
-                    return user
+                    return { id: user.token, ...user }
                 } else {
                     // If you return null then an error will be displayed advising the user to check their details.
                     return null
@@ -32,6 +32,9 @@ export const authOptions: AuthOptions = {
             }
         })
     ],
+    pages: {
+        signIn: "/login",
+    },
     session: { strategy: "jwt" },
     callbacks: {
         async jwt({ token, user }) {
