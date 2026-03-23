@@ -9,7 +9,11 @@ export default async function userRegister(
         throw new Error("Passwords do not match");
     }
 
-    const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+        throw new Error("Backend URL not configured");
+    }
 
     const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
         method: "POST",

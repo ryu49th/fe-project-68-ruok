@@ -1,7 +1,10 @@
 export default async function userLogIn(userEmail: string, userPassword: string) {
-    const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+    const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL
+    
+    if (!apiUrl) {
+        throw new Error("Backend URL not configured")
+    }
 
-    // Step 1: login to get token
     const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -16,14 +19,13 @@ export default async function userLogIn(userEmail: string, userPassword: string)
     const data = await response.json()
     const token = data.token
 
-    // Step 2: fetch full user profile (name, email, role, tel) using the token
     const meResponse = await fetch(`${apiUrl}/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
     })
 
     if (!meResponse.ok) {
-        // fallback — return just token if /me fails
-        return { token }
+        const err = await meResponse.json().catch(() => ({}))
+        throw new Error(err.message || err.msg || "Could not load user profile")
     }
 
     const meData = await meResponse.json()
@@ -31,10 +33,10 @@ export default async function userLogIn(userEmail: string, userPassword: string)
 
     return {
         token,
-        _id:   user._id,
-        name:  user.name,
+        _id: user._id,
+        name: user.name,
         email: user.email,
-        tel:   user.tel,
-        role:  user.role,
+        tel: user.tel,
+        role: user.role,
     }
 }
