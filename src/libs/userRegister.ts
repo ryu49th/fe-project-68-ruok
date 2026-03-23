@@ -9,7 +9,9 @@ export default async function userRegister(
         throw new Error("Passwords do not match");
     }
 
-    const response = await fetch("http://localhost:5000/api/v1/auth/register", {
+    const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+    const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -19,13 +21,13 @@ export default async function userRegister(
             tel: userTel,
             email: userEmail,
             password: userPassword,
-            role: "user" // Default role, modify if the form needs to specify role
+            role: "user"
         }),
     });
 
     if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || data.message || "Failed to register");
+        throw new Error(data.msg || data.error || data.message || "Failed to register");
     }
 
     return await response.json();

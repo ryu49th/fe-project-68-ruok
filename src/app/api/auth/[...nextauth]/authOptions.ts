@@ -15,19 +15,20 @@ export const authOptions: AuthOptions = {
                 email: { label: "Email", type: "email", placeholder: "email" },
                 password: { label: "Password", type: "password" }
             },
-            async authorize(credentials, req) {
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) return null
+                try {
+                    const user = await userLogIn(credentials.email, credentials.password)
 
-                if (!credentials) return null
-                const user = await userLogIn(credentials.email, credentials.password)
+                    if (user) {
+                        // Any object returned will be saved in `user` property of the JWT
+                        return { id: user.token, ...user }
+                    }
 
-                if (user) {
-                    // Any object returned will be saved in `user` property of the JWT
-                    return { id: user.token, ...user }
-                } else {
                     // If you return null then an error will be displayed advising the user to check their details.
                     return null
-
-                    // You can also Reject this callback with an Error thus the user will be sent to the error page with the error message as a query parameter
+                } catch {
+                    return null
                 }
             }
         })
@@ -43,7 +44,7 @@ export const authOptions: AuthOptions = {
             }
             return token;
         },
-        async session({ session, token, user }) {
+        async session({ session, token }) {
             session.user = token as any;
             return session;
         }
