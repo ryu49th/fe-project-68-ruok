@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import SpaceCard from "@/components/home/SpaceCard";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
@@ -90,13 +91,13 @@ export default function HomePage() {
                     Choose from our curated collection of premium workspaces — each designed to elevate your productivity.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="#spaces" className="px-8 py-3.5 rounded-xl bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-100 transition-all active:scale-95">
+                    <Link href="#spaces" className="px-8 py-3.5 rounded-xl bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-100 transition-all active:scale-95">
                         Browse Spaces ↓
-                    </a>
+                    </Link>
                     {isLoggedIn && (
-                        <a href="/reservations" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
+                        <Link href="/reservations" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
                             My Reservations →
-                        </a>
+                        </Link>
                     )}
                 </div>
             </section>

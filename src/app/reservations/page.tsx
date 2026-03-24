@@ -40,7 +40,7 @@ function mapAPIToReservation(r: ReservationFromAPI): Reservation {
         end: r.endTime ?? "",
         tel: formatTel(r.contactPhone ?? ""),
         notes: r.purpose ?? "",
-        status: r.status,
+        status: (r.status?.toLowerCase() as any) || "pending",
     };
 }
 
@@ -141,7 +141,7 @@ export default function ReservationsPage() {
                 ) : (
                     <div className="space-y-4">
                         {reservations.map((r) => {
-                            const s = statusStyles[r.status];
+                            const s = statusStyles[r.status] || statusStyles.pending;
                             return (
                                 <div key={String(r.id)} className="rounded-2xl p-5 flex gap-4 items-start shadow-sm"
                                     style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}` }}>
