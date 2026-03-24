@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react";
+import Link from "next/link";
 import userRegister from "@/libs/userRegister";
 import { formatTel } from "@/libs/formatTel";
 import AuthCardShell from "@/components/auth/AuthCardShell";
@@ -177,7 +178,7 @@ export default function RegisterPage() {
 
             <div className="mt-6 text-center text-sm text-zinc-500">
                 Already a member?{" "}
-                <a href="/login" className="font-semibold text-zinc-800 hover:underline underline-offset-2">Sign in →</a>
+                <Link href="/login" className="font-semibold text-zinc-800 hover:underline underline-offset-2">Sign in →</Link>
             </div>
         </AuthCardShell>
     );

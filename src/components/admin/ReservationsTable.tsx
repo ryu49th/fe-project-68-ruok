@@ -26,7 +26,7 @@ export default function ReservationsTable({ reservations, onEdit, onDelete }: {
                 </div>
             ) : (
                 reservations.map((r, i) => {
-                    const s = statusStyles[r.status];
+                    const s = statusStyles[r.status] || statusStyles.pending;
                     return (
                         <div key={r.id}
                             className="grid items-center px-5 py-4 border-t text-sm transition-colors"
