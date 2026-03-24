@@ -19,7 +19,7 @@ export default async function getWorkingSpaces(signal?: AbortSignal): Promise<Wo
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     // forward external abort (e.g. component unmount) into our controller
     signal?.addEventListener("abort", () => controller.abort());
