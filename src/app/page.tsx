@@ -1,7 +1,8 @@
 "use client"
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import SpaceCard from "@/components/home/SpaceCard";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
@@ -34,6 +35,7 @@ function buildSpaceForCard(ws: WorkingSpace) {
 
 export default function HomePage() {
     const { data: session } = useSession();
+    const router = useRouter();
     const role = (session?.user as any)?.role;
     const theme = role === "admin" ? themes.admin : session?.user ? themes.user : themes.guest;
     const isLoggedIn = !!session?.user;
@@ -42,15 +44,29 @@ export default function HomePage() {
     const [spaces, setSpaces] = useState<ReturnType<typeof buildSpaceForCard>[]>([]);
     const [loadingSpaces, setLoadingSpaces] = useState(true);
 
-    useEffect(() => {
+    const fetchSpaces = useCallback(() => {
+        setLoadingSpaces(true);
         getWorkingSpaces()
             .then((data) => setSpaces(data.map(buildSpaceForCard)))
             .catch(() => {
-                // Fallback to hardcoded data if backend unavailable
                 setSpaces(Object.values(spaceMeta).map((m, i) => ({ ...m, name: ["The Loft", "The Bunker", "The Garden"][i] })));
             })
             .finally(() => setLoadingSpaces(false));
     }, []);
+
+    useEffect(() => {
+        fetchSpaces();
+
+        // Re-fetch when browser restores page from bfcache (back/forward navigation)
+        const handlePageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) {
+                router.refresh();
+                fetchSpaces();
+            }
+        };
+        window.addEventListener("pageshow", handlePageShow);
+        return () => window.removeEventListener("pageshow", handlePageShow);
+    }, [fetchSpaces, router]);
 
     return (
         <div className="flex flex-col min-h-screen" style={{ backgroundColor: theme.bg }}>

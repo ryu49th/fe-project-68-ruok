@@ -1,7 +1,8 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import SpaceSummaryCard from "@/components/reserve/SpaceSummaryCard";
@@ -9,18 +10,18 @@ import { formatTel } from "@/libs/formatTel";
 import addReservation from "@/libs/addReservation";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
 
-const theme = {
-    bg: "#f0faf4", accent: "#22863a",
-    card: "#ffffff", border: "#b7e4c7", text: "#1a4731", muted: "#3a7d54",
+const themes = {
+    user:  { bg: "#f0faf4", accent: "#22863a", card: "#ffffff", border: "#b7e4c7", text: "#1a4731", muted: "#3a7d54", banner: "linear-gradient(90deg, #1a4731, #22863a, #1a4731)", bannerText: "👋 Welcome back! Browse and reserve your preferred workspace." },
+    admin: { bg: "#fff5f5", accent: "#c0392b", card: "#ffffff", border: "#f5c6c6", text: "#5a0a0a", muted: "#9b2c2c", banner: "linear-gradient(90deg, #5a0a0a, #c0392b, #5a0a0a)", bannerText: "🔐 Admin access — you can manage all reservations and spaces." },
 };
 
 const inputClass = "w-full h-11 px-4 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all";
 
-function fieldStyle(error: string | null) {
+function fieldStyle(error: string | null, theme: typeof themes.user) {
     return {
-        borderColor: error ? "#fca5a5" : "#b7e4c7",
-        color: "#1a4731",
-        backgroundColor: "#f0faf4",
+        borderColor: error ? "#fca5a5" : theme.border,
+        color: theme.text,
+        backgroundColor: theme.bg,
     };
 }
 
@@ -45,6 +46,8 @@ export default function ReservePage() {
     const router = useRouter();
     const { data: session } = useSession();
     const token = (session?.user as any)?.token as string | undefined;
+    const role = (session?.user as any)?.role;
+    const theme = role === "admin" ? themes.admin : themes.user;
 
     const [workingspace, setWorkingspace] = useState<WorkingSpace | null>(null);
     const [notFound, setNotFound] = useState(false);
@@ -79,7 +82,7 @@ export default function ReservePage() {
 
     const hasErrors = !!timeError || !!telError || !!purposeError;
 
-    useEffect(() => {
+    const fetchSpace = useCallback(() => {
         getWorkingSpaces().then((spaces) => {
             const match = spaces.find((s) => nameToSlug(s.name) === slug) ?? spaces[0];
             if (!match) setNotFound(true);
@@ -87,10 +90,23 @@ export default function ReservePage() {
         }).catch(() => setNotFound(true));
     }, [slug]);
 
+    useEffect(() => {
+        fetchSpace();
+
+        const handlePageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) {
+                router.refresh();
+                fetchSpace();
+            }
+        };
+        window.addEventListener("pageshow", handlePageShow);
+        return () => window.removeEventListener("pageshow", handlePageShow);
+    }, [fetchSpace, router]);
+
     const meta = slugMeta[slug] ?? { emoji: "🏢", floor: "", price: "", capacity: 0 };
     const spaceForCard = workingspace
-        ? { emoji: meta.emoji, name: workingspace.name, floor: meta.floor, price: meta.price, capacity: meta.capacity }
-        : { emoji: meta.emoji, name: "Loading…", floor: meta.floor, price: meta.price, capacity: meta.capacity };
+        ? { emoji: meta.emoji, name: workingspace.name, floor: meta.floor, address: workingspace.address ?? "", capacity: meta.capacity }
+        : { emoji: meta.emoji, name: "Loading…", floor: meta.floor, address: "", capacity: meta.capacity };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -135,19 +151,19 @@ export default function ReservePage() {
         <div className="flex flex-col min-h-screen" style={{ backgroundColor: theme.bg }}>
             <Navbar />
             <div className="w-full py-2.5 text-center text-sm font-medium text-white"
-                style={{ background: "linear-gradient(90deg, #1a4731, #22863a, #1a4731)" }}>
-                👋 Welcome back! Browse and reserve your preferred workspace.
+                style={{ background: theme.banner }}>
+                {theme.bannerText}
             </div>
 
             <main className="w-full max-w-2xl mx-auto px-4 py-10">
-                <a href="/" className="inline-flex items-center gap-1.5 text-sm font-medium mb-8 transition-opacity hover:opacity-70" style={{ color: theme.muted }}>
+                <Link href="/" onClick={() => router.refresh()} className="inline-flex items-center gap-1.5 text-sm font-medium mb-8 transition-opacity hover:opacity-70" style={{ color: theme.muted }}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     Back to Spaces
-                </a>
+                </Link>
 
-                <SpaceSummaryCard space={spaceForCard} />
+                <SpaceSummaryCard space={spaceForCard} gradient={theme.banner} />
 
                 <div className="rounded-2xl shadow-sm p-8" style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}` }}>
                     <h1 className="font-serif text-2xl font-bold mb-6" style={{ color: theme.text }}>Reserve This Space</h1>
@@ -174,7 +190,7 @@ export default function ReservePage() {
                         <div>
                             <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Date</label>
                             <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-                                min={new Date().toISOString().split("T")[0]} className={inputClass} style={fieldStyle(null)} />
+                                min={new Date().toISOString().split("T")[0]} className={inputClass} style={fieldStyle(null, theme)} />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -183,14 +199,14 @@ export default function ReservePage() {
                                 <input
                                     type="time" required value={startTime}
                                     onChange={(e) => { setStartTime(e.target.value); setEndTimeTouched(true); }}
-                                    className={inputClass} style={fieldStyle(null)} />
+                                    className={inputClass} style={fieldStyle(null, theme)} />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>End Time</label>
                                 <input
                                     type="time" required value={endTime}
                                     onChange={(e) => { setEndTime(e.target.value); setEndTimeTouched(true); }}
-                                    className={inputClass} style={fieldStyle(timeError)} />
+                                    className={inputClass} style={fieldStyle(timeError, theme)} />
                                 <FieldError msg={timeError} />
                             </div>
                         </div>
@@ -207,7 +223,7 @@ export default function ReservePage() {
                                     type="tel" required value={tel}
                                     onChange={(e) => setTel(formatTel(e.target.value))}
                                     onBlur={() => setTelTouched(true)}
-                                    className={`${inputClass} pl-10`} style={fieldStyle(telError)} placeholder="0xx-xxx-xxxx" />
+                                    className={`${inputClass} pl-10`} style={fieldStyle(telError, theme)} placeholder="0xx-xxx-xxxx" />
                             </div>
                             {telError
                                 ? <FieldError msg={telError} />
@@ -222,7 +238,7 @@ export default function ReservePage() {
                                 onChange={(e) => { setNotes(e.target.value); setPurposeTouched(true); }}
                                 rows={3}
                                 className="w-full px-4 py-3 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                                style={fieldStyle(purposeError)}
+                                style={fieldStyle(purposeError, theme)}
                                 placeholder="e.g. Team strategy session, need projector setup…" />
                             <FieldError msg={purposeError} />
                         </div>

@@ -47,7 +47,7 @@ export default function SpaceCard({ space, theme, isLoggedIn }: {
                     </span>
                 </div>
 
-                <p className="text-xs font-medium mb-3" style={{ color: theme.muted }}>📍 {space.floor}</p>
+                <p className="text-xs font-medium mb-3" style={{ color: theme.muted }}>{space.floor}</p>
                 <p className="text-sm leading-relaxed mb-4 flex-1" style={{ color: theme.muted }}>{space.desc}</p>
 
                 <div className="flex flex-wrap gap-1.5 mb-5">
