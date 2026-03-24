@@ -1,38 +1,30 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import SpaceSummaryCard from "@/components/reserve/SpaceSummaryCard";
-import { formatTel } from "@/libs/formatTel";
 import addReservation from "@/libs/addReservation";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
 
-const theme = {
-    bg: "#f0faf4", accent: "#22863a",
-    card: "#ffffff", border: "#b7e4c7", text: "#1a4731", muted: "#3a7d54",
+const themes = {
+    user:  { bg: "#f0faf4", accent: "#22863a", card: "#ffffff", border: "#b7e4c7", text: "#1a4731", muted: "#3a7d54", gradient: "linear-gradient(135deg, #1a4731 0%, #22863a 100%)", banner: "linear-gradient(90deg, #1a4731, #22863a, #1a4731)" },
+    admin: { bg: "#fff5f5", accent: "#c0392b", card: "#ffffff", border: "#f5c6c6", text: "#5a0a0a", muted: "#9b2c2c", gradient: "linear-gradient(135deg, #5a0a0a 0%, #c0392b 100%)", banner: "linear-gradient(90deg, #5a0a0a, #c0392b, #5a0a0a)" },
 };
 
 const inputClass = "w-full h-11 px-4 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all";
 
-function fieldStyle(error: string | null) {
-    return {
-        borderColor: error ? "#fca5a5" : "#b7e4c7",
-        color: "#1a4731",
-        backgroundColor: "#f0faf4",
-    };
-}
-
 // slug to display info (for UI only while loading from API)
-const slugMeta: Record<string, { emoji: string; floor: string; price: string; capacity: number }> = {
-    "the-loft":   { emoji: "🏙️", floor: "Floor 4",  price: "฿800/day",   capacity: 12 },
-    "the-bunker": { emoji: "🔒", floor: "Floor 1",  price: "฿500/day",   capacity: 6  },
-    "the-garden": { emoji: "🌿", floor: "Rooftop",  price: "฿1,200/day", capacity: 20 },
+const slugMeta: Record<string, { emoji: string; floor: string }> = {
+    "the-loft":   { emoji: "🏙️", floor: "Floor 4" },
+    "the-bunker": { emoji: "🔒", floor: "Floor 1" },
+    "the-garden": { emoji: "🌿", floor: "Rooftop"  },
 };
 
 function nameToSlug(name: string): string {
-    return "the-" + name.toLowerCase().replace(/\s+/g, "-");
+    return name.toLowerCase().replace(/\s+/g, "-");
 }
 
 function FieldError({ msg }: { msg: string | null }) {
@@ -45,6 +37,8 @@ export default function ReservePage() {
     const router = useRouter();
     const { data: session } = useSession();
     const token = (session?.user as any)?.token as string | undefined;
+    const role = (session?.user as any)?.role;
+    const theme = role === "admin" ? themes.admin : themes.user;
 
     const [workingspace, setWorkingspace] = useState<WorkingSpace | null>(null);
     const [notFound, setNotFound] = useState(false);
@@ -52,7 +46,6 @@ export default function ReservePage() {
     const [date, setDate] = useState("");
     const [startTime, setStartTime] = useState("09:00");
     const [endTime, setEndTime] = useState("17:00");
-    const [tel, setTel] = useState("");
     const [notes, setNotes] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -60,43 +53,59 @@ export default function ReservePage() {
 
     // touched flags — show errors only after user interacts with each field
     const [endTimeTouched, setEndTimeTouched] = useState(false);
-    const [telTouched, setTelTouched] = useState(false);
     const [purposeTouched, setPurposeTouched] = useState(false);
 
     // real-time validation
-    const timeError = endTimeTouched && endTime && startTime && endTime <= startTime
-        ? "End time must be after start time"
+    const opentime = workingspace?.openTime ?? "";
+    const closetime = workingspace?.closeTime ?? "";
+
+    const startTimeError = endTimeTouched && opentime && startTime && startTime < opentime
+        ? `Start time cannot be before opening time (${opentime})`
         : null;
 
-    const digits = tel.replace(/\D/g, "");
-    const telError = telTouched && (digits.length !== 10 || !digits.startsWith("0"))
-        ? "Phone must be 10 digits starting with 0 (e.g. 081-234-5678)"
+    const timeError = endTimeTouched && endTime && startTime && endTime <= startTime
+        ? "End time must be after start time"
+        : endTimeTouched && closetime && endTime && endTime > closetime
+        ? `End time cannot be after closing time (${closetime})`
         : null;
 
     const purposeError = purposeTouched && !notes.trim()
         ? "Purpose is required"
         : null;
 
-    const hasErrors = !!timeError || !!telError || !!purposeError;
+    const hasErrors = !!startTimeError || !!timeError || !!purposeError;
 
-    useEffect(() => {
+    function loadSpace() {
         getWorkingSpaces().then((spaces) => {
             const match = spaces.find((s) => nameToSlug(s.name) === slug) ?? spaces[0];
             if (!match) setNotFound(true);
             else setWorkingspace(match);
         }).catch(() => setNotFound(true));
+    }
+
+    useEffect(() => {
+        loadSpace();
+        // fix bfcache: refresh when user navigates back with browser arrow
+        const onPageShow = (e: PageTransitionEvent) => { if (e.persisted) loadSpace(); };
+        window.addEventListener("pageshow", onPageShow);
+        return () => window.removeEventListener("pageshow", onPageShow);
     }, [slug]);
 
-    const meta = slugMeta[slug] ?? { emoji: "🏢", floor: "", price: "", capacity: 0 };
+    const fieldStyle = (error: string | null) => ({
+        borderColor: error ? "#fca5a5" : theme.border,
+        color: theme.text,
+        backgroundColor: theme.bg,
+    });
+
+    const meta = slugMeta[slug] ?? { emoji: "🏢", floor: "" };
     const spaceForCard = workingspace
-        ? { emoji: meta.emoji, name: workingspace.name, floor: meta.floor, price: meta.price, capacity: meta.capacity }
-        : { emoji: meta.emoji, name: "Loading…", floor: meta.floor, price: meta.price, capacity: meta.capacity };
+        ? { emoji: meta.emoji, name: workingspace.name, floor: meta.floor, address: workingspace.address, opentime: workingspace.openTime, closetime: workingspace.closeTime, accentGradient: theme.gradient }
+        : { emoji: meta.emoji, name: "Loading…", floor: meta.floor, address: "", accentGradient: theme.gradient };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         // touch all fields to reveal any hidden errors
         setEndTimeTouched(true);
-        setTelTouched(true);
         setPurposeTouched(true);
 
         if (hasErrors) return;
@@ -110,7 +119,6 @@ export default function ReservePage() {
                 date,
                 startTime,
                 endTime,
-                contactPhone: digits,
                 purpose: notes,
             });
             setSuccess(true);
@@ -135,17 +143,17 @@ export default function ReservePage() {
         <div className="flex flex-col min-h-screen" style={{ backgroundColor: theme.bg }}>
             <Navbar />
             <div className="w-full py-2.5 text-center text-sm font-medium text-white"
-                style={{ background: "linear-gradient(90deg, #1a4731, #22863a, #1a4731)" }}>
-                👋 Welcome back! Browse and reserve your preferred workspace.
+                style={{ background: theme.banner }}>
+                {role === "admin" ? "🔐 Admin access — you can manage all reservations and spaces." : "👋 Welcome back! Browse and reserve your preferred workspace."}
             </div>
 
             <main className="w-full max-w-2xl mx-auto px-4 py-10">
-                <a href="/" className="inline-flex items-center gap-1.5 text-sm font-medium mb-8 transition-opacity hover:opacity-70" style={{ color: theme.muted }}>
+                <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-medium mb-8 transition-opacity hover:opacity-70" style={{ color: theme.muted }}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     Back to Spaces
-                </a>
+                </Link>
 
                 <SpaceSummaryCard space={spaceForCard} />
 
@@ -182,37 +190,22 @@ export default function ReservePage() {
                                 <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Start Time</label>
                                 <input
                                     type="time" required value={startTime}
+                                    min={opentime || undefined}
+                                    max={closetime || undefined}
                                     onChange={(e) => { setStartTime(e.target.value); setEndTimeTouched(true); }}
-                                    className={inputClass} style={fieldStyle(null)} />
+                                    className={inputClass} style={fieldStyle(startTimeError)} />
+                                <FieldError msg={startTimeError} />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>End Time</label>
                                 <input
                                     type="time" required value={endTime}
+                                    min={opentime || undefined}
+                                    max={closetime || undefined}
                                     onChange={(e) => { setEndTime(e.target.value); setEndTimeTouched(true); }}
                                     className={inputClass} style={fieldStyle(timeError)} />
                                 <FieldError msg={timeError} />
                             </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Contact Phone</label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: telError ? "#ef4444" : theme.muted }}>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type="tel" required value={tel}
-                                    onChange={(e) => setTel(formatTel(e.target.value))}
-                                    onBlur={() => setTelTouched(true)}
-                                    className={`${inputClass} pl-10`} style={fieldStyle(telError)} placeholder="0xx-xxx-xxxx" />
-                            </div>
-                            {telError
-                                ? <FieldError msg={telError} />
-                                : <p className="mt-1 text-xs" style={{ color: theme.muted }}>Format: 0xx-xxx-xxxx</p>
-                            }
                         </div>
 
                         <div>

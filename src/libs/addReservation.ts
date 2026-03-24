@@ -5,7 +5,6 @@ export default async function addReservation(
         date: string;
         startTime: string;
         endTime: string;
-        contactPhone: string;
         purpose: string;
     }
 ) {
