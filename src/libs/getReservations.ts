@@ -3,6 +3,7 @@ export interface ReservationFromAPI {
     date: string;
     startTime: string;
     endTime: string;
+    contactPhone: string;
     purpose: string;
     status: "confirmed" | "pending" | "cancelled";
     workingspace: {

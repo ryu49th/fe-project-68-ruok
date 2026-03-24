@@ -8,6 +8,7 @@ import EditModal, { Reservation } from "@/components/reservations/EditModal";
 import getReservations, { ReservationFromAPI } from "@/libs/getReservations";
 import updateReservation from "@/libs/updateReservation";
 import deleteReservation from "@/libs/deleteReservation";
+import { formatTel } from "@/libs/formatTel";
 
 const theme = {
     bg: "#f0faf4", accent: "#22863a",
@@ -37,7 +38,7 @@ function mapAPIToReservation(r: ReservationFromAPI): Reservation {
         date: r.date?.split("T")[0] ?? "",
         start: r.startTime ?? "",
         end: r.endTime ?? "",
-        tel: r.user?.tel ?? "",
+        tel: formatTel(r.contactPhone ?? ""),
         notes: r.purpose ?? "",
         status: (r.status?.toLowerCase() as any) || "pending",
     };
@@ -90,6 +91,7 @@ export default function ReservationsPage() {
                 date: updated.date,
                 startTime: updated.start,
                 endTime: updated.end,
+                contactPhone: updated.tel.replace(/\D/g, ""),
                 purpose: updated.notes,
             });
             setReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));

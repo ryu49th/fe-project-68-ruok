@@ -9,7 +9,19 @@ const theme = {
 };
 
 const inputClass = "w-full h-11 px-4 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all";
-const inputStyle = { borderColor: "#b7e4c7", color: "#1a4731", backgroundColor: "#f0faf4" };
+
+function fieldStyle(error: string | null) {
+    return {
+        borderColor: error ? "#fca5a5" : "#b7e4c7",
+        color: "#1a4731",
+        backgroundColor: "#f0faf4",
+    };
+}
+
+function FieldError({ msg }: { msg: string | null }) {
+    if (!msg) return null;
+    return <p className="mt-1 text-xs text-red-600 flex items-center gap-1">⚠ {msg}</p>;
+}
 
 export interface Reservation {
     id: number;
@@ -34,8 +46,32 @@ export default function EditModal({ reservation, onSave, onClose }: {
     const [notes, setNotes] = useState(reservation.notes);
     const [isLoading, setIsLoading] = useState(false);
 
+    const [endTimeTouched, setEndTimeTouched] = useState(false);
+    const [telTouched, setTelTouched]         = useState(false);
+    const [notesTouched, setNotesTouched]     = useState(false);
+
+    const timeError = endTimeTouched && end && start && end <= start
+        ? "End time must be after start time"
+        : null;
+
+    const digits = tel.replace(/\D/g, "");
+    const telError = telTouched && (digits.length !== 10 || !digits.startsWith("0"))
+        ? "Phone must be 10 digits starting with 0 (e.g. 081-234-5678)"
+        : null;
+
+    const notesError = notesTouched && !notes.trim()
+        ? "Purpose is required"
+        : null;
+
+    const hasErrors = !!timeError || !!telError || !!notesError;
+
     const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        setEndTimeTouched(true);
+        setTelTouched(true);
+        setNotesTouched(true);
+        if (hasErrors) return;
+
         setIsLoading(true);
         await new Promise((r) => setTimeout(r, 700));
         onSave({ ...reservation, date, start, end, tel, notes });
@@ -67,31 +103,46 @@ export default function EditModal({ reservation, onSave, onClose }: {
                 <form onSubmit={handleSave} className="p-6 space-y-4">
                     <div>
                         <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Date</label>
-                        <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} style={inputStyle} />
+                        <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
+                            className={inputClass} style={fieldStyle(null)} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Start Time</label>
-                            <input type="time" required value={start} onChange={(e) => setStart(e.target.value)} className={inputClass} style={inputStyle} />
+                            <input type="time" required value={start}
+                                onChange={(e) => { setStart(e.target.value); setEndTimeTouched(true); }}
+                                className={inputClass} style={fieldStyle(null)} />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>End Time</label>
-                            <input type="time" required value={end} onChange={(e) => setEnd(e.target.value)} className={inputClass} style={inputStyle} />
+                            <input type="time" required value={end}
+                                onChange={(e) => { setEnd(e.target.value); setEndTimeTouched(true); }}
+                                className={inputClass} style={fieldStyle(timeError)} />
+                            <FieldError msg={timeError} />
                         </div>
                     </div>
 
                     <div>
                         <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Contact Phone</label>
-                        <input type="tel" required value={tel} onChange={(e) => setTel(formatTel(e.target.value))}
-                            className={inputClass} style={inputStyle} placeholder="0xx-xxx-xxxx" />
+                        <input type="tel" required value={tel}
+                            onChange={(e) => setTel(formatTel(e.target.value))}
+                            onBlur={() => setTelTouched(true)}
+                            className={inputClass} style={fieldStyle(telError)} placeholder="0xx-xxx-xxxx" />
+                        {telError
+                            ? <FieldError msg={telError} />
+                            : <p className="mt-1 text-xs" style={{ color: theme.muted }}>Format: 0xx-xxx-xxxx</p>
+                        }
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Notes</label>
-                        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+                        <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Purpose</label>
+                        <textarea value={notes}
+                            onChange={(e) => { setNotes(e.target.value); setNotesTouched(true); }}
+                            rows={2}
                             className="w-full px-4 py-3 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                            style={inputStyle} placeholder="Add any notes…" />
+                            style={fieldStyle(notesError)} placeholder="Add any notes…" />
+                        <FieldError msg={notesError} />
                     </div>
 
                     <div className="flex gap-3 pt-1">
