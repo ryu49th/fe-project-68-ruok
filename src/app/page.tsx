@@ -6,6 +6,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import SpaceCard from "@/components/home/SpaceCard";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
+import rateWorkingSpace from "@/libs/rateWorkingSpace";
 
 const themes = {
     guest: { bg: "#f0f0ef", accent: "#6b6b6b", card: "#ffffff", border: "#d4d4d4", text: "#2a2a2a", muted: "#6b6b6b" },
@@ -21,7 +22,7 @@ const spaceMeta: Record<string, { emoji: string; floor: string; price: string; c
 };
 
 function nameToSlug(name: string): string {
-    return "the-" + name.toLowerCase().replace(/\s+/g, "-");
+    return name.toLowerCase().replace(/\s+/g, "-");
 }
 
 function buildSpaceForCard(ws: WorkingSpace) {
@@ -30,7 +31,14 @@ function buildSpaceForCard(ws: WorkingSpace) {
         emoji: "🏢", floor: ws.district ?? "", price: "—", capacity: 0,
         desc: ws.address ?? "", amenities: [`Tel: ${ws.tel}`], gradient: "from-gray-700 to-gray-900",
     };
-    return { ...meta, name: ws.name };
+    return {
+        ...meta,
+        _id: ws._id,
+        slug,
+        name: ws.name,
+        averageRating: Number(ws.averageRating || 0),
+        totalReviews: Number(ws.totalReviews || 0),
+    };
 }
 
 export default function HomePage() {
@@ -42,16 +50,59 @@ export default function HomePage() {
 
     const [spaces, setSpaces] = useState<ReturnType<typeof buildSpaceForCard>[]>([]);
     const [loadingSpaces, setLoadingSpaces] = useState(true);
+    const [ratingMessageBySpaceId, setRatingMessageBySpaceId] = useState<Record<string, string>>({});
+    const [submittingRatingSpaceId, setSubmittingRatingSpaceId] = useState<string | null>(null);
 
     useEffect(() => {
         getWorkingSpaces()
             .then((data) => setSpaces(data.map(buildSpaceForCard)))
             .catch(() => {
                 // Fallback to hardcoded data if backend unavailable
-                setSpaces(Object.values(spaceMeta).map((m, i) => ({ ...m, name: ["The Loft", "The Bunker", "The Garden"][i] })));
+                setSpaces(
+                    Object.values(spaceMeta).map((m, i) => ({
+                        ...m,
+                        _id: `fallback-${i}`,
+                        slug: ["the-loft", "the-bunker", "the-garden"][i],
+                        name: ["The Loft", "The Bunker", "The Garden"][i],
+                        averageRating: 0,
+                        totalReviews: 0,
+                    }))
+                );
             })
             .finally(() => setLoadingSpaces(false));
     }, []);
+
+    const handleRate = async (spaceId: string, rating: number) => {
+        const token = (session?.user as any)?.token as string | undefined;
+        if (!token) {
+            setRatingMessageBySpaceId((prev) => ({ ...prev, [spaceId]: "Please sign in to rate" }));
+            return;
+        }
+
+        setSubmittingRatingSpaceId(spaceId);
+        setRatingMessageBySpaceId((prev) => ({ ...prev, [spaceId]: "Submitting rating..." }));
+
+        try {
+            const updated = await rateWorkingSpace(token, spaceId, rating);
+            setSpaces((prev) => prev.map((space) =>
+                space._id === spaceId
+                    ? {
+                        ...space,
+                        averageRating: Number(updated.averageRating || space.averageRating),
+                        totalReviews: Number(updated.totalReviews || space.totalReviews),
+                    }
+                    : space
+            ));
+            setRatingMessageBySpaceId((prev) => ({ ...prev, [spaceId]: `Thanks! You rated ${rating}/5.` }));
+        } catch (err: any) {
+            setRatingMessageBySpaceId((prev) => ({
+                ...prev,
+                [spaceId]: err?.message || "Could not submit rating",
+            }));
+        } finally {
+            setSubmittingRatingSpaceId(null);
+        }
+    };
 
     return (
         <div className="flex flex-col min-h-screen" style={{ backgroundColor: theme.bg }}>
@@ -104,7 +155,15 @@ export default function HomePage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {spaces.map((space) => (
-                            <SpaceCard key={space.name} space={space} theme={theme} isLoggedIn={isLoggedIn} />
+                            <SpaceCard
+                                key={space._id || space.name}
+                                space={space}
+                                theme={theme}
+                                isLoggedIn={isLoggedIn}
+                                onRate={handleRate}
+                                isSubmittingRating={submittingRatingSpaceId === space._id}
+                                ratingMessage={ratingMessageBySpaceId[space._id]}
+                            />
                         ))}
                     </div>
                 )}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 interface Space {
+    _id: string;
+    slug: string;
     emoji: string;
     name: string;
     floor: string;
@@ -9,6 +11,8 @@ interface Space {
     desc: string;
     amenities: string[];
     gradient: string;
+    averageRating: number;
+    totalReviews: number;
 }
 
 interface Theme {
@@ -19,10 +23,13 @@ interface Theme {
     accent: string;
 }
 
-export default function SpaceCard({ space, theme, isLoggedIn }: {
+export default function SpaceCard({ space, theme, isLoggedIn, onRate, isSubmittingRating, ratingMessage }: {
     space: Space;
     theme: Theme;
     isLoggedIn: boolean;
+    onRate: (spaceId: string, rating: number) => void;
+    isSubmittingRating: boolean;
+    ratingMessage?: string;
 }) {
     return (
         <div className="rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
@@ -61,7 +68,45 @@ export default function SpaceCard({ space, theme, isLoggedIn }: {
                     ))}
                 </div>
 
-                <Link href={isLoggedIn ? `/reserve/${space.name.toLowerCase().replace(/\s+/g, "-")}` : "/login"}
+                <div className="mb-4 rounded-xl border p-3" style={{ borderColor: theme.border, backgroundColor: "#f8fffa" }}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs font-semibold" style={{ color: theme.text }}>
+                            Rating: {space.averageRating.toFixed(1)} / 5
+                        </p>
+                        <span className="text-xs" style={{ color: theme.muted }}>
+                            {space.totalReviews} review{space.totalReviews !== 1 ? "s" : ""}
+                        </span>
+                    </div>
+
+                    {isLoggedIn ? (
+                        <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => onRate(space._id, star)}
+                                    disabled={isSubmittingRating}
+                                    className="text-lg leading-none transition-transform hover:scale-110 disabled:opacity-50"
+                                    style={{ color: star <= Math.round(space.averageRating) ? "#f59e0b" : "#d1d5db" }}
+                                    aria-label={`Rate ${space.name} ${star} star${star > 1 ? "s" : ""}`}
+                                    title={`Rate ${star}`}
+                                >
+                                    ★
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-xs" style={{ color: theme.muted }}>
+                            Sign in to rate this workspace
+                        </p>
+                    )}
+
+                    {ratingMessage && (
+                        <p className="text-xs mt-2" style={{ color: theme.muted }}>{ratingMessage}</p>
+                    )}
+                </div>
+
+                <Link href={isLoggedIn ? `/reserve/${space.slug}` : "/login"}
                     className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
                     style={{ backgroundColor: theme.accent }}>
                     Reserve This Space
