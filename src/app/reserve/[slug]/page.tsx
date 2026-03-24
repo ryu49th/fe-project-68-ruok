@@ -122,7 +122,7 @@ export default function ReservePage() {
                 purpose: notes,
             });
             setSuccess(true);
-            setTimeout(() => router.push("/reservations"), 1500);
+            setTimeout(() => router.push(role === "admin" ? "/admin" : "/reservations"), 1500);
         } catch (err: any) {
             setErrorMsg(err.message ?? "Failed to create reservation");
         } finally {
