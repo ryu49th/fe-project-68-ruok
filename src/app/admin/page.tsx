@@ -25,7 +25,7 @@ function mapAPIToAdminReservation(r: ReservationFromAPI): AdminReservation {
         date: r.date?.split("T")[0] ?? "",
         start: r.startTime ?? "",
         end: r.endTime ?? "",
-        status: r.status,
+        status: (r.status?.toLowerCase() as any) || "pending",
     };
 }
 
