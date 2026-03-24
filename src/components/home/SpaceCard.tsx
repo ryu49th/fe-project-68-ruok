@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface Space {
     emoji: string;
     name: string;
@@ -59,14 +61,14 @@ export default function SpaceCard({ space, theme, isLoggedIn }: {
                     ))}
                 </div>
 
-                <a href={isLoggedIn ? `/reserve/${space.name.toLowerCase().replace(/\s+/g, "-")}` : "/login"}
+                <Link href={isLoggedIn ? `/reserve/${space.name.toLowerCase().replace(/\s+/g, "-")}` : "/login"}
                     className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
                     style={{ backgroundColor: theme.accent }}>
                     Reserve This Space
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                </a>
+                </Link>
             </div>
         </div>
     );
