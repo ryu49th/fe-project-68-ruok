@@ -48,7 +48,7 @@ export default function ReservationsTable({ reservations, onEdit, onDelete }: {
                             </div>
 
                             {/* Space */}
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-3 min-w-0">
                                 <span className="text-xl flex-shrink-0">{r.space.emoji}</span>
                                 <span className="font-serif font-bold truncate" style={{ color: theme.text }}>{r.space.name}</span>
                             </div>

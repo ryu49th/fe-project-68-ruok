@@ -47,15 +47,6 @@ export default function LoginForm() {
                 </div>
             )}
 
-            {/* Demo credentials */}
-            <div className="mb-5 p-4 rounded-xl border" style={{ backgroundColor: "#f0f0ef", borderColor: "#d4d4d4" }}>
-                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Demo Credentials</p>
-                <div className="space-y-1 text-sm text-zinc-600">
-                    <p><span className="font-medium text-zinc-800">Member:</span> member@cowork.io / password123</p>
-                    <p><span className="font-medium text-zinc-800">Admin:</span> admin@cowork.io / admin1234</p>
-                </div>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div>

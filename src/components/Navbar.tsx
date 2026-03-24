@@ -57,12 +57,12 @@ export default function Navbar() {
                 {/* Right */}
                 <div className="flex items-center gap-1 sm:gap-2">
                     {/* Spaces link — always visible */}
-                    <Link
-                        href="/#spaces"
+                    <button
+                        onClick={() => document.getElementById("spaces")?.scrollIntoView({ behavior: "smooth" })}
                         className="hidden sm:block px-3 py-1.5 text-sm text-white/80 hover:text-white transition-colors rounded-lg hover:bg-white/10"
                     >
                         Spaces
-                    </Link>
+                    </button>
 
                     {/* Guest: Sign In button */}
                     {!isLoggedIn && (
@@ -113,17 +113,19 @@ export default function Navbar() {
                                     </div>
 
                                     <div className="py-1.5">
-                                        {/* My Reservations */}
-                                        <Link
-                                            href="/reservations"
-                                            onClick={() => setOpen(false)}
-                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-                                        >
-                                            <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                            My Reservations
-                                        </Link>
+                                        {/* My Reservations — users only */}
+                                        {!isAdmin && (
+                                            <Link
+                                                href="/reservations"
+                                                onClick={() => setOpen(false)}
+                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                                            >
+                                                <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                My Reservations
+                                            </Link>
+                                        )}
 
                                         {/* Admin Dashboard — admins only */}
                                         {isAdmin && (

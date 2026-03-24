@@ -1,8 +1,8 @@
 "use client"
 
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import SpaceCard from "@/components/home/SpaceCard";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
@@ -36,8 +36,11 @@ function buildSpaceForCard(ws: WorkingSpace) {
         _id: ws._id,
         slug,
         name: ws.name,
+        address: ws.address ?? "",  
         averageRating: Number(ws.averageRating || 0),
         totalReviews: Number(ws.totalReviews || 0),
+        opentime: ws.openTime, 
+        closetime: ws.closeTime
     };
 }
 
@@ -54,22 +57,37 @@ export default function HomePage() {
     const [submittingRatingSpaceId, setSubmittingRatingSpaceId] = useState<string | null>(null);
 
     useEffect(() => {
-        getWorkingSpaces()
-            .then((data) => setSpaces(data.map(buildSpaceForCard)))
+        const controller = new AbortController();
+
+        setLoadingSpaces(true);
+        getWorkingSpaces(controller.signal)
+            .then((data) => {
+                if (!controller.signal.aborted)
+                    setSpaces(data.map(buildSpaceForCard));
+            })
             .catch(() => {
-                // Fallback to hardcoded data if backend unavailable
-                setSpaces(
+                if (!controller.signal.aborted) {
+                  setSpaces(
                     Object.values(spaceMeta).map((m, i) => ({
                         ...m,
                         _id: `fallback-${i}`,
                         slug: ["the-loft", "the-bunker", "the-garden"][i],
                         name: ["The Loft", "The Bunker", "The Garden"][i],
+                        address: "",  
+                        opentime: "",
+                        closetime: "",
                         averageRating: 0,
                         totalReviews: 0,
                     }))
                 );
+              }
             })
-            .finally(() => setLoadingSpaces(false));
+            .finally(() => {
+                if (!controller.signal.aborted)
+                    setLoadingSpaces(false);
+            });
+
+        return () => controller.abort();
     }, []);
 
     const handleRate = async (spaceId: string, rating: number) => {
@@ -126,12 +144,17 @@ export default function HomePage() {
                     Choose from our curated collection of premium workspaces — each designed to elevate your productivity.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link href="#spaces" className="px-8 py-3.5 rounded-xl bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-100 transition-all active:scale-95">
+                    <a href="#spaces" className="px-8 py-3.5 rounded-xl bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-100 transition-all active:scale-95">
                         Browse Spaces ↓
-                    </Link>
-                    {isLoggedIn && (
+                    </a>
+                    {isLoggedIn && !isAdmin && (
                         <Link href="/reservations" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
                             My Reservations →
+                        </Link>
+                    )}
+                    {isAdmin && (
+                        <Link href="/admin" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
+                            Admin Dashboard →
                         </Link>
                     )}
                 </div>

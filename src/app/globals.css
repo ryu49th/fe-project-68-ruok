@@ -9,6 +9,11 @@
   box-sizing: border-box;
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 body {
   font-family: var(--font-dm-sans), system-ui, sans-serif;
 }

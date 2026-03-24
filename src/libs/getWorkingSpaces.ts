@@ -15,21 +15,32 @@ export interface WorkingSpace {
     totalReviews?: number;
 }
 
-export default async function getWorkingSpaces(): Promise<WorkingSpace[]> {
-    const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
+export default async function getWorkingSpaces(signal?: AbortSignal): Promise<WorkingSpace[]> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL;
 
     if (!apiUrl) {
         throw new Error("Backend URL not configured");
     }
 
-    const response = await fetch(`${apiUrl}/api/v1/workingspaces`, {
-        cache: "no-store",
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
-    if (!response.ok) {
-        throw new Error("Failed to fetch working spaces");
+    // forward external abort (e.g. component unmount) into our controller
+    signal?.addEventListener("abort", () => controller.abort());
+
+    try {
+        const response = await fetch(`${apiUrl}/api/v1/workingspaces`, {
+            cache: "no-store",
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch working spaces");
+        }
+
+        const data = await response.json();
+        return data.data as WorkingSpace[];
+    } finally {
+        clearTimeout(timeout);
     }
-
-    const data = await response.json();
-    return data.data as WorkingSpace[];
 }
