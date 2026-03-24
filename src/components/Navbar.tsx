@@ -57,12 +57,12 @@ export default function Navbar() {
                 {/* Right */}
                 <div className="flex items-center gap-1 sm:gap-2">
                     {/* Spaces link — always visible */}
-                    <Link
-                        href="/#spaces"
+                    <button
+                        onClick={() => document.getElementById("spaces")?.scrollIntoView({ behavior: "smooth" })}
                         className="hidden sm:block px-3 py-1.5 text-sm text-white/80 hover:text-white transition-colors rounded-lg hover:bg-white/10"
                     >
                         Spaces
-                    </Link>
+                    </button>
 
                     {/* Guest: Sign In button */}
                     {!isLoggedIn && (
