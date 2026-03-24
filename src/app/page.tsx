@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import SpaceCard from "@/components/home/SpaceCard";
 import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
