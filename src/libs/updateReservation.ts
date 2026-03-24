@@ -5,8 +5,10 @@ export default async function updateReservation(
         date?: string;
         startTime?: string;
         endTime?: string;
+        contactPhone?: string;
         purpose?: string;
         status?: string;
+        workingspace?: string;
     }
 ) {
     const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;

@@ -1,13 +1,27 @@
 "use client"
 
-import { useState } from "react";
-import { theme, statusStyles, inputClass, inputStyle, formatTel, AdminReservation, Status } from "./types";
+import { useState, useEffect, useRef } from "react";
+import { theme, statusStyles, inputClass, formatTel, AdminReservation, Status } from "./types";
+import getWorkingSpaces, { WorkingSpace } from "@/libs/getWorkingSpaces";
 
 const statusOpts: { value: Status; label: string }[] = [
     { value: "confirmed", label: "Confirmed" },
     { value: "pending",   label: "Pending"   },
     { value: "cancelled", label: "Cancelled" },
 ];
+
+function fieldStyle(error: string | null) {
+    return {
+        borderColor: error ? "#fca5a5" : "#f5c6c6",
+        color: "#5a0a0a",
+        backgroundColor: "#fff5f5",
+    };
+}
+
+function FieldError({ msg }: { msg: string | null }) {
+    if (!msg) return null;
+    return <p className="mt-1 text-xs text-red-600 flex items-center gap-1">⚠ {msg}</p>;
+}
 
 export default function AdminEditModal({ reservation, onSave, onClose }: {
     reservation: AdminReservation;
@@ -23,11 +37,67 @@ export default function AdminEditModal({ reservation, onSave, onClose }: {
     const [status, setStatus] = useState<Status>(reservation.status);
     const [isLoading, setIsLoading] = useState(false);
 
+    // workspace dropdown
+    const [spaces, setSpaces]               = useState<WorkingSpace[]>([]);
+    const [workingspaceId, setWorkingspaceId] = useState(reservation.workingspaceId);
+    const [spaceName, setSpaceName]         = useState(reservation.space.name);
+    const [search, setSearch]               = useState(reservation.space.name);
+    const [showDropdown, setShowDropdown]   = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        getWorkingSpaces().then(setSpaces).catch(() => {});
+    }, []);
+
+    // close dropdown on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setShowDropdown(false);
+                setSearch(spaceName); // revert search text if user didn't pick
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [spaceName]);
+
+    const filtered = spaces.filter((s) =>
+        s.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // validation touched flags
+    const [nameTouched, setNameTouched]       = useState(false);
+    const [endTimeTouched, setEndTimeTouched] = useState(false);
+    const [telTouched, setTelTouched]         = useState(false);
+
+    const nameError = nameTouched && !user.trim() ? "Name is required" : null;
+
+    const timeError = endTimeTouched && end && start && end <= start
+        ? "End time must be after start time"
+        : null;
+
+    const digits = tel.replace(/\D/g, "");
+    const telError = telTouched && (digits.length !== 10 || !digits.startsWith("0"))
+        ? "Phone must be 10 digits starting with 0 (e.g. 081-234-5678)"
+        : null;
+
+    const hasErrors = !!nameError || !!timeError || !!telError;
+
     const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        setNameTouched(true);
+        setEndTimeTouched(true);
+        setTelTouched(true);
+        if (hasErrors) return;
+
         setIsLoading(true);
         await new Promise((r) => setTimeout(r, 700));
-        onSave({ ...reservation, user, email, tel, date, start, end, status });
+        onSave({
+            ...reservation,
+            user, email, tel, date, start, end, status,
+            workingspaceId,
+            space: { emoji: "🏢", name: spaceName },
+        });
         setIsLoading(false);
     };
 
@@ -59,7 +129,7 @@ export default function AdminEditModal({ reservation, onSave, onClose }: {
                     </button>
                 </div>
 
-                <form onSubmit={handleSave} className="p-6 space-y-4">
+                <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                     {/* Member Info */}
                     <div>
                         <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: theme.muted }}>Member Info</p>
@@ -67,14 +137,17 @@ export default function AdminEditModal({ reservation, onSave, onClose }: {
                             <div>
                                 <label className="block text-xs font-semibold mb-1" style={{ color: theme.text }}>Full Name</label>
                                 <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: theme.muted }}>
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                                        style={{ color: nameError ? "#ef4444" : theme.muted }}>
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                         </svg>
                                     </div>
-                                    <input type="text" required value={user} onChange={(e) => setUser(e.target.value)}
-                                        className={`${inputClass} pl-9`} style={inputStyle} placeholder="Full name" />
+                                    <input type="text" required value={user}
+                                        onChange={(e) => { setUser(e.target.value); setNameTouched(true); }}
+                                        className={`${inputClass} pl-9`} style={fieldStyle(nameError)} placeholder="Full name" />
                                 </div>
+                                <FieldError msg={nameError} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
@@ -87,20 +160,24 @@ export default function AdminEditModal({ reservation, onSave, onClose }: {
                                             </svg>
                                         </div>
                                         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                                            className={`${inputClass} pl-9`} style={inputStyle} placeholder="email@example.com" />
+                                            className={`${inputClass} pl-9`} style={fieldStyle(null)} placeholder="email@example.com" />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold mb-1" style={{ color: theme.text }}>Phone</label>
                                     <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: theme.muted }}>
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                                            style={{ color: telError ? "#ef4444" : theme.muted }}>
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                             </svg>
                                         </div>
-                                        <input type="tel" required value={tel} onChange={(e) => setTel(formatTel(e.target.value))}
-                                            className={`${inputClass} pl-9`} style={inputStyle} placeholder="0xx-xxx-xxxx" />
+                                        <input type="tel" required value={tel}
+                                            onChange={(e) => setTel(formatTel(e.target.value))}
+                                            onBlur={() => setTelTouched(true)}
+                                            className={`${inputClass} pl-9`} style={fieldStyle(telError)} placeholder="0xx-xxx-xxxx" />
                                     </div>
+                                    <FieldError msg={telError} />
                                 </div>
                             </div>
                         </div>
@@ -112,22 +189,88 @@ export default function AdminEditModal({ reservation, onSave, onClose }: {
                     <div>
                         <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: theme.muted }}>Booking Details</p>
                         <div className="space-y-3">
+
+                            {/* Workspace searchable dropdown */}
+                            <div>
+                                <label className="block text-xs font-semibold mb-1" style={{ color: theme.text }}>Workspace</label>
+                                <div className="relative" ref={dropdownRef}>
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{ color: theme.muted }}>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={search}
+                                        onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
+                                        onFocus={() => setShowDropdown(true)}
+                                        className={`${inputClass} pl-9 pr-8`}
+                                        style={fieldStyle(null)}
+                                        placeholder="Search workspace…"
+                                    />
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none" style={{ color: theme.muted }}>
+                                        <svg className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+
+                                    {showDropdown && (
+                                        <div className="absolute z-10 w-full mt-1 rounded-xl shadow-lg overflow-hidden"
+                                            style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}` }}>
+                                            {filtered.length === 0 ? (
+                                                <p className="px-4 py-3 text-sm" style={{ color: theme.muted }}>No spaces found</p>
+                                            ) : (
+                                                <ul className="max-h-48 overflow-y-auto">
+                                                    {filtered.map((s) => (
+                                                        <li key={s._id}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setWorkingspaceId(s._id);
+                                                                    setSpaceName(s.name);
+                                                                    setSearch(s.name);
+                                                                    setShowDropdown(false);
+                                                                }}
+                                                                className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-red-50"
+                                                                style={{
+                                                                    color: theme.text,
+                                                                    fontWeight: s._id === workingspaceId ? 600 : 400,
+                                                                    backgroundColor: s._id === workingspaceId ? "#fff0f0" : undefined,
+                                                                }}
+                                                            >
+                                                                🏢 {s.name}
+                                                                {s._id === workingspaceId && (
+                                                                    <span className="ml-2 text-xs" style={{ color: theme.accent }}>✓ current</span>
+                                                                )}
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-semibold mb-1" style={{ color: theme.text }}>Date</label>
                                 <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-                                    className={inputClass} style={inputStyle} />
+                                    className={inputClass} style={fieldStyle(null)} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold mb-1" style={{ color: theme.text }}>Start Time</label>
-                                    <input type="time" required value={start} onChange={(e) => setStart(e.target.value)}
-                                        className={inputClass} style={inputStyle} />
+                                    <input type="time" required value={start}
+                                        onChange={(e) => { setStart(e.target.value); setEndTimeTouched(true); }}
+                                        className={inputClass} style={fieldStyle(null)} />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold mb-1" style={{ color: theme.text }}>End Time</label>
-                                    <input type="time" required value={end} onChange={(e) => setEnd(e.target.value)}
-                                        className={inputClass} style={inputStyle} />
+                                    <input type="time" required value={end}
+                                        onChange={(e) => { setEnd(e.target.value); setEndTimeTouched(true); }}
+                                        className={inputClass} style={fieldStyle(timeError)} />
+                                    <FieldError msg={timeError} />
                                 </div>
                             </div>
 

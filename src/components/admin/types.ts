@@ -12,6 +12,7 @@ export interface AdminReservation {
     email: string;
     tel: string;
     space: { emoji: string; name: string };
+    workingspaceId: string;
     date: string;
     start: string;
     end: string;

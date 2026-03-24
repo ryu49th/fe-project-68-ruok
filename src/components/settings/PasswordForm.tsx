@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import EyeIcon from "@/components/shared/EyeIcon";
+import updatePassword from "@/libs/updatePassword";
 
 interface Theme {
     accent: string;
@@ -12,7 +13,7 @@ interface Theme {
     inputBg: string;
 }
 
-export default function PasswordForm({ theme }: { theme: Theme }) {
+export default function PasswordForm({ theme, token }: { theme: Theme; token: string }) {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword]         = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,7 +24,12 @@ export default function PasswordForm({ theme }: { theme: Theme }) {
     const [loading, setLoading] = useState(false);
     const [error, setError]     = useState("");
 
+    const [newPasswordTouched, setNewPasswordTouched] = useState(false);
+
     const passwordMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+    const newPasswordError = newPasswordTouched && newPassword.length > 0 && newPassword.length < 6
+        ? "Password must be at least 6 characters"
+        : null;
 
     const inputClass = "w-full h-11 px-4 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all";
     const inputStyle = { borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg };
@@ -31,15 +37,23 @@ export default function PasswordForm({ theme }: { theme: Theme }) {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError("");
+        setNewPasswordTouched(true);
         if (newPassword !== confirmPassword) { setError("New passwords do not match."); return; }
         if (newPassword.length < 6) { setError("Password must be at least 6 characters."); return; }
+
         setLoading(true);
         setSaved(false);
-        await new Promise((r) => setTimeout(r, 800));
-        setLoading(false);
-        setSaved(true);
-        setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            await updatePassword(token, currentPassword, newPassword);
+            setSaved(true);
+            setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+            setNewPasswordTouched(false);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err: any) {
+            setError(err.message ?? "Failed to update password");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -86,12 +100,16 @@ export default function PasswordForm({ theme }: { theme: Theme }) {
                         <div className="relative">
                             <input type={showNew ? "text" : "password"} required value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className={`${inputClass} pr-11`} style={inputStyle} placeholder="••••••••" />
+                                onBlur={() => setNewPasswordTouched(true)}
+                                className={`${inputClass} pr-11`}
+                                style={{ ...inputStyle, borderColor: newPasswordError ? "#fca5a5" : theme.border }}
+                                placeholder="••••••••" />
                             <button type="button" onClick={() => setShowNew(!showNew)}
                                 className="absolute inset-y-0 right-0 pr-3.5 flex items-center transition-colors" style={{ color: theme.muted }}>
                                 <EyeIcon open={showNew} />
                             </button>
                         </div>
+                        {newPasswordError && <p className="mt-1 text-xs text-red-600 flex items-center gap-1">⚠ {newPasswordError}</p>}
                     </div>
                     <div>
                         <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Confirm New</label>
@@ -117,7 +135,7 @@ export default function PasswordForm({ theme }: { theme: Theme }) {
                 </div>
 
                 <div className="flex items-center gap-4 pt-1">
-                    <button type="submit" disabled={loading || passwordMismatch}
+                    <button type="submit" disabled={loading || passwordMismatch || !!newPasswordError}
                         className="px-6 h-10 flex items-center gap-2 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ backgroundColor: theme.accent }}>
                         {loading

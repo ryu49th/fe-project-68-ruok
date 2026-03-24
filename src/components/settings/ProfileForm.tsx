@@ -12,6 +12,19 @@ interface Theme {
     inputBg: string;
 }
 
+function fieldStyle(error: string | null, border: string, text: string, inputBg: string) {
+    return {
+        borderColor: error ? "#fca5a5" : border,
+        color: text,
+        backgroundColor: inputBg,
+    };
+}
+
+function FieldError({ msg }: { msg: string | null }) {
+    if (!msg) return null;
+    return <p className="mt-1 text-xs text-red-600 flex items-center gap-1">⚠ {msg}</p>;
+}
+
 export default function ProfileForm({ initialName, initialEmail, initialTel, theme }: {
     initialName: string;
     initialEmail: string;
@@ -24,11 +37,26 @@ export default function ProfileForm({ initialName, initialEmail, initialTel, the
     const [saved, setSaved]     = useState(false);
     const [loading, setLoading] = useState(false);
 
+    const [nameTouched, setNameTouched] = useState(false);
+    const [telTouched, setTelTouched]   = useState(false);
+
+    const nameError = nameTouched && !name.trim() ? "Name is required" : null;
+
+    const digits = tel.replace(/\D/g, "");
+    const telError = telTouched && tel.length > 0 && (digits.length !== 10 || !digits.startsWith("0"))
+        ? "Phone must be 10 digits starting with 0 (e.g. 081-234-5678)"
+        : null;
+
+    const hasErrors = !!nameError || !!telError;
+
     const inputClass = "w-full h-11 px-4 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all";
-    const inputStyle = { borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        setNameTouched(true);
+        setTelTouched(true);
+        if (hasErrors) return;
+
         setLoading(true);
         setSaved(false);
         await new Promise((r) => setTimeout(r, 800));
@@ -50,14 +78,19 @@ export default function ProfileForm({ initialName, initialEmail, initialTel, the
                 <div>
                     <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Full Name</label>
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: theme.muted }}>
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"
+                            style={{ color: nameError ? "#ef4444" : theme.muted }}>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </div>
-                        <input type="text" required value={name} onChange={(e) => setName(e.target.value)}
-                            className={`${inputClass} pl-10`} style={inputStyle} placeholder="Your full name" />
+                        <input type="text" required value={name}
+                            onChange={(e) => { setName(e.target.value); setNameTouched(true); }}
+                            className={`${inputClass} pl-10`}
+                            style={fieldStyle(nameError, theme.border, theme.text, theme.inputBg)}
+                            placeholder="Your full name" />
                     </div>
+                    <FieldError msg={nameError} />
                 </div>
 
                 {/* Email */}
@@ -70,7 +103,9 @@ export default function ProfileForm({ initialName, initialEmail, initialTel, the
                             </svg>
                         </div>
                         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                            className={`${inputClass} pl-10`} style={inputStyle} placeholder="your@email.com" />
+                            className={`${inputClass} pl-10`}
+                            style={fieldStyle(null, theme.border, theme.text, theme.inputBg)}
+                            placeholder="your@email.com" />
                     </div>
                 </div>
 
@@ -78,15 +113,23 @@ export default function ProfileForm({ initialName, initialEmail, initialTel, the
                 <div>
                     <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Phone Number</label>
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: theme.muted }}>
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"
+                            style={{ color: telError ? "#ef4444" : theme.muted }}>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                             </svg>
                         </div>
-                        <input type="tel" value={tel} onChange={(e) => setTel(formatTel(e.target.value))}
-                            className={`${inputClass} pl-10`} style={inputStyle} placeholder="0xx-xxx-xxxx" />
+                        <input type="tel" value={tel}
+                            onChange={(e) => setTel(formatTel(e.target.value))}
+                            onBlur={() => setTelTouched(true)}
+                            className={`${inputClass} pl-10`}
+                            style={fieldStyle(telError, theme.border, theme.text, theme.inputBg)}
+                            placeholder="0xx-xxx-xxxx" />
                     </div>
-                    <p className="mt-1 text-xs" style={{ color: theme.muted }}>Format: 0xx-xxx-xxxx</p>
+                    {telError
+                        ? <FieldError msg={telError} />
+                        : <p className="mt-1 text-xs" style={{ color: theme.muted }}>Format: 0xx-xxx-xxxx</p>
+                    }
                 </div>
 
                 <div className="flex items-center gap-4 pt-1">

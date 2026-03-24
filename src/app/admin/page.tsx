@@ -22,6 +22,7 @@ function mapAPIToAdminReservation(r: ReservationFromAPI): AdminReservation {
             emoji: "🏢",
             name: r.workingspace?.name ?? "Unknown Space",
         },
+        workingspaceId: r.workingspace?._id ?? "",
         date: r.date?.split("T")[0] ?? "",
         start: r.startTime ?? "",
         end: r.endTime ?? "",
@@ -76,6 +77,7 @@ export default function AdminPage() {
                 startTime: updated.start,
                 endTime: updated.end,
                 status: updated.status,
+                workingspace: updated.workingspaceId,
             });
             setReservations((prev) => prev.map((r) => r.id === updated.id ? updated : r));
             setEditTarget(null);

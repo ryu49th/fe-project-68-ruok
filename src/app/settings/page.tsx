@@ -18,6 +18,7 @@ export default function SettingsPage() {
     const name  = (session?.user?.name as string) ?? "";
     const email = (session?.user?.email as string) ?? "";
     const tel   = (session?.user as any)?.tel ?? "";
+    const token = (session?.user as any)?.token as string ?? "";
 
     return (
         <div className="flex flex-col min-h-screen" style={{ backgroundColor: theme.bg }}>
@@ -35,7 +36,7 @@ export default function SettingsPage() {
 
                 <AvatarCard name={name} email={email} isAdmin={isAdmin} theme={theme} />
                 <ProfileForm initialName={name} initialEmail={email} initialTel={tel} theme={theme} />
-                <PasswordForm theme={theme} />
+                <PasswordForm theme={theme} token={token} />
             </main>
         </div>
     );
