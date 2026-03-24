@@ -1,26 +1,51 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import { theme, AdminReservation, FilterType } from "@/components/admin/types";
 import AdminEditModal from "@/components/admin/AdminEditModal";
 import StatCards from "@/components/admin/StatCards";
 import FilterPills from "@/components/admin/FilterPills";
 import ReservationsTable from "@/components/admin/ReservationsTable";
+import getReservations, { ReservationFromAPI } from "@/libs/getReservations";
+import updateReservation from "@/libs/updateReservation";
+import deleteReservation from "@/libs/deleteReservation";
 
-const initialReservations: AdminReservation[] = [
-    { id: 1, user: "Alice Chen",   email: "alice@example.com",  tel: "081-234-5678", space: { emoji: "🏙️", name: "The Loft"   }, date: "2026-03-25", start: "09:00", end: "17:00", status: "confirmed" },
-    { id: 2, user: "Bob Tanaka",   email: "bob@example.com",    tel: "092-345-6789", space: { emoji: "🔒", name: "The Bunker" }, date: "2026-03-28", start: "10:00", end: "14:00", status: "pending"   },
-    { id: 3, user: "Carol Singh",  email: "carol@example.com",  tel: "065-456-7890", space: { emoji: "🌿", name: "The Garden" }, date: "2026-04-02", start: "13:00", end: "18:00", status: "cancelled" },
-    { id: 4, user: "David Müller", email: "david@example.com",  tel: "081-567-8901", space: { emoji: "🏙️", name: "The Loft"   }, date: "2026-04-05", start: "08:00", end: "12:00", status: "confirmed" },
-    { id: 5, user: "Emma Lawson",  email: "emma@example.com",   tel: "098-678-9012", space: { emoji: "🌿", name: "The Garden" }, date: "2026-04-08", start: "14:00", end: "19:00", status: "pending"   },
-    { id: 6, user: "Frank Reyes",  email: "frank@example.com",  tel: "062-789-0123", space: { emoji: "🔒", name: "The Bunker" }, date: "2026-04-10", start: "09:00", end: "13:00", status: "confirmed" },
-];
+function mapAPIToAdminReservation(r: ReservationFromAPI): AdminReservation {
+    return {
+        id: r._id as any,
+        user: r.user?.name ?? "Unknown",
+        email: r.user?.email ?? "",
+        tel: r.user?.tel ?? "",
+        space: {
+            emoji: "🏢",
+            name: r.workingspace?.name ?? "Unknown Space",
+        },
+        date: r.date?.split("T")[0] ?? "",
+        start: r.startTime ?? "",
+        end: r.endTime ?? "",
+        status: r.status,
+    };
+}
 
 export default function AdminPage() {
-    const [reservations, setReservations] = useState<AdminReservation[]>(initialReservations);
+    const { data: session } = useSession();
+    const token = (session?.user as any)?.token as string | undefined;
+
+    const [reservations, setReservations] = useState<AdminReservation[]>([]);
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
     const [editTarget, setEditTarget] = useState<AdminReservation | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!token) return;
+        getReservations(token)
+            .then((data) => setReservations(data.map(mapAPIToAdminReservation)))
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false));
+    }, [token]);
 
     const stats = {
         total:     reservations.length,
@@ -33,12 +58,30 @@ export default function AdminPage() {
         ? reservations
         : reservations.filter((r) => r.status === activeFilter);
 
-    const handleDelete = (id: number) =>
-        setReservations((prev) => prev.filter((r) => r.id !== id));
+    const handleDelete = async (id: number) => {
+        if (!token) return;
+        try {
+            await deleteReservation(token, String(id));
+            setReservations((prev) => prev.filter((r) => r.id !== id));
+        } catch (e: any) {
+            alert(e.message);
+        }
+    };
 
-    const handleSave = (updated: AdminReservation) => {
-        setReservations((prev) => prev.map((r) => r.id === updated.id ? updated : r));
-        setEditTarget(null);
+    const handleSave = async (updated: AdminReservation) => {
+        if (!token) return;
+        try {
+            await updateReservation(token, String(updated.id), {
+                date: updated.date,
+                startTime: updated.start,
+                endTime: updated.end,
+                status: updated.status,
+            });
+            setReservations((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+            setEditTarget(null);
+        } catch (e: any) {
+            alert(e.message);
+        }
     };
 
     const statCards = [
@@ -59,12 +102,29 @@ export default function AdminPage() {
             <main className="w-full max-w-6xl mx-auto px-4 py-10">
                 <div className="mb-8">
                     <h1 className="font-serif text-3xl font-bold" style={{ color: theme.text }}>Admin Panel</h1>
-                    <p className="text-sm mt-1" style={{ color: theme.muted }}>Manage all reservations across all members</p>
+                    <p className="text-sm mt-1" style={{ color: theme.muted }}>
+                        {loading ? "Loading reservations…" : "Manage all reservations across all members"}
+                    </p>
                 </div>
 
-                <StatCards cards={statCards} />
-                <FilterPills activeFilter={activeFilter} stats={stats} onChange={setActiveFilter} />
-                <ReservationsTable reservations={filtered} onEdit={setEditTarget} onDelete={handleDelete} />
+                {error && (
+                    <div className="rounded-2xl p-4 mb-6 bg-red-50 border border-red-200 text-red-700 text-sm">
+                        ❌ {error}
+                    </div>
+                )}
+
+                {loading ? (
+                    <div className="text-center py-20" style={{ color: theme.muted }}>
+                        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin mx-auto mb-3" />
+                        Loading all reservations…
+                    </div>
+                ) : (
+                    <>
+                        <StatCards cards={statCards} />
+                        <FilterPills activeFilter={activeFilter} stats={stats} onChange={setActiveFilter} />
+                        <ReservationsTable reservations={filtered} onEdit={setEditTarget} onDelete={handleDelete} />
+                    </>
+                )}
             </main>
 
             {editTarget && (

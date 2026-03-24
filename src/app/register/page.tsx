@@ -25,6 +25,14 @@ export default function RegisterPage() {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (passwordMismatch) return;
+
+        // Validate tel format: 0xx-xxx-xxxx (exactly 10 digits + 2 dashes = 12 chars)
+        const telRegex = /^0[0-9]{2}-[0-9]{3}-[0-9]{4}$/;
+        if (!telRegex.test(tel)) {
+            setError("Phone number must be in format 0xx-xxx-xxxx (e.g. 086-123-4567)");
+            return;
+        }
+
         setError("");
         try {
             setIsLoading(true);
