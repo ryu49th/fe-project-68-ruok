@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react";
-import { formatTel } from "@/libs/formatTel";
 
 const theme = {
     bg: "#f0faf4", accent: "#22863a",
@@ -29,7 +28,6 @@ export interface Reservation {
     date: string;
     start: string;
     end: string;
-    tel: string;
     notes: string;
     status: "confirmed" | "pending" | "cancelled";
 }
@@ -42,39 +40,31 @@ export default function EditModal({ reservation, onSave, onClose }: {
     const [date, setDate]   = useState(reservation.date);
     const [start, setStart] = useState(reservation.start);
     const [end, setEnd]     = useState(reservation.end);
-    const [tel, setTel]     = useState(reservation.tel);
     const [notes, setNotes] = useState(reservation.notes);
     const [isLoading, setIsLoading] = useState(false);
 
     const [endTimeTouched, setEndTimeTouched] = useState(false);
-    const [telTouched, setTelTouched]         = useState(false);
     const [notesTouched, setNotesTouched]     = useState(false);
 
     const timeError = endTimeTouched && end && start && end <= start
         ? "End time must be after start time"
         : null;
 
-    const digits = tel.replace(/\D/g, "");
-    const telError = telTouched && (digits.length !== 10 || !digits.startsWith("0"))
-        ? "Phone must be 10 digits starting with 0 (e.g. 081-234-5678)"
-        : null;
-
     const notesError = notesTouched && !notes.trim()
         ? "Purpose is required"
         : null;
 
-    const hasErrors = !!timeError || !!telError || !!notesError;
+    const hasErrors = !!timeError || !!notesError;
 
     const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setEndTimeTouched(true);
-        setTelTouched(true);
         setNotesTouched(true);
         if (hasErrors) return;
 
         setIsLoading(true);
         await new Promise((r) => setTimeout(r, 700));
-        onSave({ ...reservation, date, start, end, tel, notes });
+        onSave({ ...reservation, date, start, end, notes });
         setIsLoading(false);
     };
 
@@ -121,18 +111,6 @@ export default function EditModal({ reservation, onSave, onClose }: {
                                 className={inputClass} style={fieldStyle(timeError)} />
                             <FieldError msg={timeError} />
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-semibold mb-1.5" style={{ color: theme.text }}>Contact Phone</label>
-                        <input type="tel" required value={tel}
-                            onChange={(e) => setTel(formatTel(e.target.value))}
-                            onBlur={() => setTelTouched(true)}
-                            className={inputClass} style={fieldStyle(telError)} placeholder="0xx-xxx-xxxx" />
-                        {telError
-                            ? <FieldError msg={telError} />
-                            : <p className="mt-1 text-xs" style={{ color: theme.muted }}>Format: 0xx-xxx-xxxx</p>
-                        }
                     </div>
 
                     <div>

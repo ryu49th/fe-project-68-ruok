@@ -8,7 +8,6 @@ import EditModal, { Reservation } from "@/components/reservations/EditModal";
 import getReservations, { ReservationFromAPI } from "@/libs/getReservations";
 import updateReservation from "@/libs/updateReservation";
 import deleteReservation from "@/libs/deleteReservation";
-import { formatTel } from "@/libs/formatTel";
 
 const theme = {
     bg: "#f0faf4", accent: "#22863a",
@@ -38,8 +37,7 @@ function mapAPIToReservation(r: ReservationFromAPI): Reservation {
         date: r.date?.split("T")[0] ?? "",
         start: r.startTime ?? "",
         end: r.endTime ?? "",
-        tel: formatTel(r.contactPhone ?? ""),
-        notes: r.purpose ?? "",
+            notes: r.purpose ?? "",
         status: r.status,
     };
 }
@@ -91,7 +89,6 @@ export default function ReservationsPage() {
                 date: updated.date,
                 startTime: updated.start,
                 endTime: updated.end,
-                contactPhone: updated.tel.replace(/\D/g, ""),
                 purpose: updated.notes,
             });
             setReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -165,12 +162,6 @@ export default function ReservationsPage() {
                                                 {r.start} – {r.end}
                                             </span>
                                             {r.space.floor && <span className="flex items-center gap-1">📍 {r.space.floor}</span>}
-                                            <span className="flex items-center gap-1">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                </svg>
-                                                {r.tel}
-                                            </span>
                                         </div>
                                         {r.notes && <p className="text-xs mt-2 leading-relaxed line-clamp-2" style={{ color: theme.muted }}>{r.notes}</p>}
                                     </div>

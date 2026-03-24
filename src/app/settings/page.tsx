@@ -35,7 +35,7 @@ export default function SettingsPage() {
                 </div>
 
                 <AvatarCard name={name} email={email} isAdmin={isAdmin} theme={theme} />
-                <ProfileForm initialName={name} initialEmail={email} initialTel={tel} theme={theme} />
+                <ProfileForm initialName={name} initialEmail={email} initialTel={tel} token={token} theme={theme} />
                 <PasswordForm theme={theme} token={token} />
             </main>
         </div>

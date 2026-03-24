@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { formatTel } from "@/libs/formatTel";
+import updateProfile from "@/libs/updateProfile";
 
 interface Theme {
     accent: string;
@@ -25,12 +27,15 @@ function FieldError({ msg }: { msg: string | null }) {
     return <p className="mt-1 text-xs text-red-600 flex items-center gap-1">⚠ {msg}</p>;
 }
 
-export default function ProfileForm({ initialName, initialEmail, initialTel, theme }: {
+export default function ProfileForm({ initialName, initialEmail, initialTel, token, theme }: {
     initialName: string;
     initialEmail: string;
     initialTel: string;
+    token: string;
     theme: Theme;
 }) {
+    const { update } = useSession();
+
     const [name, setName]   = useState(initialName);
     const [email, setEmail] = useState(initialEmail);
     const [tel, setTel]     = useState(initialTel);
@@ -43,7 +48,7 @@ export default function ProfileForm({ initialName, initialEmail, initialTel, the
     const nameError = nameTouched && !name.trim() ? "Name is required" : null;
 
     const digits = tel.replace(/\D/g, "");
-    const telError = telTouched && tel.length > 0 && (digits.length !== 10 || !digits.startsWith("0"))
+    const telError = telTouched && (digits.length !== 10 || !digits.startsWith("0"))
         ? "Phone must be 10 digits starting with 0 (e.g. 081-234-5678)"
         : null;
 
@@ -59,10 +64,16 @@ export default function ProfileForm({ initialName, initialEmail, initialTel, the
 
         setLoading(true);
         setSaved(false);
-        await new Promise((r) => setTimeout(r, 800));
-        setLoading(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            await updateProfile(token, { name, email, tel });
+            await update({ name, email, tel });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err: any) {
+            alert(err.message ?? "Failed to update profile");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

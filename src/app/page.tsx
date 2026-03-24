@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
@@ -29,7 +30,7 @@ function buildSpaceForCard(ws: WorkingSpace) {
         emoji: "🏢", floor: ws.district ?? "", price: "—", capacity: 0,
         desc: ws.address ?? "", amenities: [`Tel: ${ws.tel}`], gradient: "from-gray-700 to-gray-900",
     };
-    return { ...meta, name: ws.name };
+    return { ...meta, name: ws.name, address: ws.address ?? "", opentime: ws.openTime, closetime: ws.closeTime };
 }
 
 export default function HomePage() {
@@ -43,13 +44,24 @@ export default function HomePage() {
     const [loadingSpaces, setLoadingSpaces] = useState(true);
 
     useEffect(() => {
-        getWorkingSpaces()
-            .then((data) => setSpaces(data.map(buildSpaceForCard)))
-            .catch(() => {
-                // Fallback to hardcoded data if backend unavailable
-                setSpaces(Object.values(spaceMeta).map((m, i) => ({ ...m, name: ["The Loft", "The Bunker", "The Garden"][i] })));
+        const controller = new AbortController();
+
+        setLoadingSpaces(true);
+        getWorkingSpaces(controller.signal)
+            .then((data) => {
+                if (!controller.signal.aborted)
+                    setSpaces(data.map(buildSpaceForCard));
             })
-            .finally(() => setLoadingSpaces(false));
+            .catch(() => {
+                if (!controller.signal.aborted)
+                    setSpaces(Object.values(spaceMeta).map((m, i) => ({ ...m, name: ["The Loft", "The Bunker", "The Garden"][i], address: "", opentime: "", closetime: "" })));
+            })
+            .finally(() => {
+                if (!controller.signal.aborted)
+                    setLoadingSpaces(false);
+            });
+
+        return () => controller.abort();
     }, []);
 
     return (
@@ -77,10 +89,15 @@ export default function HomePage() {
                     <a href="#spaces" className="px-8 py-3.5 rounded-xl bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-100 transition-all active:scale-95">
                         Browse Spaces ↓
                     </a>
-                    {isLoggedIn && (
-                        <a href="/reservations" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
+                    {isLoggedIn && !isAdmin && (
+                        <Link href="/reservations" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
                             My Reservations →
-                        </a>
+                        </Link>
+                    )}
+                    {isAdmin && (
+                        <Link href="/admin" className="px-8 py-3.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-all active:scale-95">
+                            Admin Dashboard →
+                        </Link>
                     )}
                 </div>
             </section>
