@@ -31,7 +31,7 @@ export default function AdminEditModal({ reservation, onSave, onClose }: {
         setIsLoading(false);
     };
 
-    const ss = statusStyles[status];
+    const ss = statusStyles[status] || statusStyles.pending;
 
     return (
         <div
