@@ -6,9 +6,13 @@ export interface WorkingSpace {
     province: string;
     postalcode: string;
     tel: string;
-    openTime: string;
-    closeTime: string;
+    openTime?: string;
+    closeTime?: string;
+    opentime?: string;
+    closetime?: string;
     picture?: string;
+    averageRating?: number;
+    totalReviews?: number;
 }
 
 export default async function getWorkingSpaces(signal?: AbortSignal): Promise<WorkingSpace[]> {
