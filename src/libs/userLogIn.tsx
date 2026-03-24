@@ -1,15 +1,27 @@
 export default async function userLogIn(userEmail: string, userPassword: string) {
     const apiUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL
-    
+
     if (!apiUrl) {
         throw new Error("Backend URL not configured")
     }
 
-    const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, password: userPassword }),
-    })
+    const loginController = new AbortController();
+    const loginTimeout = setTimeout(() => loginController.abort(), 40000);
+
+    let response: Response;
+    try {
+        response = await fetch(`${apiUrl}/api/v1/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userEmail, password: userPassword }),
+            signal: loginController.signal,
+        });
+    } catch (e: any) {
+        if (e?.name === "AbortError") throw new Error("Login timed out — the server may be starting up, please try again");
+        throw e;
+    } finally {
+        clearTimeout(loginTimeout);
+    }
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}))
